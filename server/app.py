@@ -14,13 +14,58 @@ migrate = Migrate(app, db)
 
 db.init_app(app)
 
+
 @app.route('/messages')
 def messages():
-    return ''
+    messages = Message.query.all()
+    serialized_messages = [message.to_dict() for message in messages]
+    return jsonify(serialized_messages)
+
 
 @app.route('/messages/<int:id>')
 def messages_by_id(id):
-    return ''
+    message = Message.query.get(id)
+    if message:
+        return jsonify(message.to_dict())
+    else:
+        return jsonify({"error": "Message not found"}), 404
+
+
+@app.route('/messages', methods=['POST'])
+def create_message():
+    data = request.get_json()
+    if "body" not in data or "username" not in data:
+        return jsonify({"error": "Missing body or username in the request"}), 400
+
+    new_message = Message(body=data["body"], username=data["username"])
+    db.session.add(new_message)
+    db.session.commit()
+    return jsonify(new_message.to_dict()), 201
+
+
+@app.route('/messages/<int:id>', methods=['PATCH'])
+def update_message(id):
+    data = request.get_json()
+    message = Message.query.get(id)
+    if not message:
+        return jsonify({"error": "Message not found"}), 404
+
+    if "body" in data:
+        message.body = data["body"]
+    db.session.commit()
+    return jsonify(message.to_dict())
+
+
+@app.route('/messages/<int:id>', methods=['DELETE'])
+def delete_message(id):
+    message = Message.query.get(id)
+    if not message:
+        return jsonify({"error": "Message not found"}), 404
+
+    db.session.delete(message)
+    db.session.commit()
+    return jsonify({"message": "Message deleted"})
+
 
 if __name__ == '__main__':
     app.run(port=5555)
